@@ -26,20 +26,25 @@ __license__ = "Apache 2.0"
 #  TL;DR:
 #  For a human-readable & fast explanation of the Apache 2.0 license visit:  http://www.tldrlegal.com/l/apache2
 
+
 class Inntinn:
     def __init__(self):
         self.master_dict = {}
+
         pass
 
     def download(self):
         current_year = datetime.date.today().year
         for year in range(2002, current_year):
-            result = requests.get(f"https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-{year}.json.zip", stream=True)
+            result = requests.get(
+                f"https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-{year}.json.zip",
+                stream=True,
+            )
             zip_object = zipfile.ZipFile(BytesIO(result.content))
             json_object = zip_object.read(zip_object.filelist[0].filename)
-            raw_list = json.loads(json_object)['CVE_Items']
+            raw_list = json.loads(json_object)["CVE_Items"]
             for list_item in raw_list:
-                cve_id = list_item['cve']['CVE_data_meta']['ID']
-                description = list_item['cve']['description']['description_data']
+                cve_id = list_item["cve"]["CVE_data_meta"]["ID"]
+                description = list_item["cve"]["description"]["description_data"]
                 self.master_dict[cve_id] = description
         self.master_dict

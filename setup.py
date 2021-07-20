@@ -8,7 +8,7 @@ with open(os.path.join(HERE, "README.md")) as fid:
 
 setup(
     name="inntinn",
-    version="0.0.1",
+    version="0.0.2",
     description="OSINT composite vulnerability database",
     long_description=README,
     long_description_content_type="text/markdown",

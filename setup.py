@@ -29,5 +29,5 @@ setup(
     ],
     packages=["inntinn"],
     include_package_data=True,
-    install_requires=["requests, mongoblack"],
+    install_requires=["requests", "mongoblack"],
 )

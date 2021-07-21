@@ -5,6 +5,9 @@ from io import BytesIO
 import json
 import pathlib
 import math
+import mongoblack
+import numpy
+from bson.regex import Regex
 
 
 """inntinn: OSINT composite vulnerability database"""
@@ -31,11 +34,16 @@ __license__ = "Apache 2.0"
 
 
 class Database:
-    def __init__(self):
+    def __init__(self, config_json, **kwargs):
+        self.kwargs = kwargs
         self.master_dict = {}
         self.company_dict = {}
         self.temp_dir = pathlib.Path.cwd() / "temp"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
+        if isinstance(config_json, (str, pathlib.Path)):
+            config_path = pathlib.Path(config_json)
+        self.config = self._load_json_file(config_path)
+        self.db = self._connect_db()
 
     def _parse_download(self, nvd_zipped_json):
         result = requests.get(nvd_zipped_json, stream=True)
@@ -139,8 +147,18 @@ class Database:
             self.company_dict[item[0]]["risk_base_score"] = (
                 math.sqrt(ranking / number_of_companies) * 10
             )
+            item
 
-    def company_read(self):
+    def _connect_db(self):
+        return mongoblack.Connection(
+            self.config["db"]["instance"],
+            self.config["db"]["user"],
+            self.config["db"]["pass"],
+            self.config["db"]["uri"],
+            **self.kwargs,
+        )
+
+    def _company_read(self):
         for path in sorted(self.temp_dir.rglob("*")):
             company_dict = self._load_json_file(path)
             try:
@@ -164,8 +182,11 @@ class Database:
                 "assets": assets,
             }
         self._company_risk_rank()
+        for key, value in self.company_dict.items():
+            self.db.write("companies", value, key)
+        self.company_dict
 
-    def company_download(self):
+    def _company_download(self):
         print("Downloading SEC database...")
         headers = {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.164 Safari/537.36"
@@ -179,7 +200,7 @@ class Database:
         master_zip = zipfile.ZipFile(BytesIO(result.content))
         master_zip.extractall(path=self.temp_dir)
 
-    def download(self):
+    def _download(self):
         current_year = datetime.date.today().year
         print("Downloading entire NVD database...")
         for year in range(2002, current_year + 1):
@@ -195,6 +216,70 @@ class Database:
         self._parse_download(
             "https://nvd.nist.gov/feeds/json/cve/1.1/nvdcve-1.1-modified.json.zip"
         )
+        for key, value in self.master_dict.items():
+            self.db.write("cves", value, key)
+
+    def update(self):
+        """
+        Updates all internal databases using freshly downloaded data
+        """
+        self._company_download()
+        self._company_read()
+        self._download()
+
+    def cik_lookup(self, company_name):
+        """
+        Looks up all matching companies given the supplied company name
+        Returns a dict in the format {cik:company}
+        :param company_name: (case-insensitive) all or partial name of company to search for
+        :return: dict: a dictionary where each key:value is cik:company
+        """
+        final_result = {}
+        query = {}
+        query["name"] = Regex(f".*{company_name}.*", "i")
+
+        for item in self.db.get_all("companies", query):
+            final_result[item["_id"]] = {item["name"]}
+        return final_result
+
+    def score_fuzzy(self, cve, company_name):
+        """
+        Computes the final composite Inntinn score given a portion of a company name and CVE
+        The final Tuple returned contains the score and the number of companies which went into said score
+        :param cve: NVD CVE ID which a given device is vulnerable
+        :param company_name: (case-insensitive) all or partial company name which owns the given device
+        :return: (int,int): Tuple of (final composite score, number of companies matched)
+        """
+        cve_doc = self.db.get("cves", cve)
+        if cve_doc["v3_score"] > -1:
+            score = cve_doc["v3_score"]
+        else:
+            score = cve_doc["v2_score"]
+
+        base_scores = []
+        query = {}
+        query["name"] = Regex(f".*{company_name}.*", "i")
+
+        for item in self.db.get_all("companies", query):
+            base_scores.append(item["risk_base_score"])
+        average = numpy.mean(
+            numpy.array(base_scores)
+        )  # Fastest way to average a list: https://stackoverflow.com/questions/58016779/fastest-way-to-compute-average-of-a-list
+
+        return (round(average * score), len(base_scores))
 
     def score(self, cve, cik):
-        pass
+        """
+        Computes the final composite Inntinn score given a specific company CIK and CVE
+        :param cve: NVD CVE ID which a given device is vulnerable
+        :param cik: SEC CIK identifier of a company which owns the given device
+        :return: int: final composite score
+        """
+        company_doc = self.db.get("companies", int(cik))
+        cve_doc = self.db.get("cves", cve)
+        if cve_doc["v3_score"] > -1:
+            score = cve_doc["v3_score"]
+        else:
+            score = cve_doc["v2_score"]
+
+        return round(company_doc["risk_base_score"] * score)

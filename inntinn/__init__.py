@@ -8,6 +8,9 @@ import math
 import mongoblack
 import numpy
 from bson.regex import Regex
+import re
+import csv
+import warnings
 
 
 """inntinn: OSINT composite vulnerability database"""
@@ -34,7 +37,15 @@ __license__ = "Apache 2.0"
 
 
 class Database:
-    def __init__(self, config_json, **kwargs):
+    def __init__(self, config_json: [str, pathlib.Path], **kwargs):
+        """
+        Initializes the database connection using the supplied configuration file.
+        :param config_json: Pathlib path, or string containing the path to the configuration JSON file
+        :keyword compression: MongoDB Zlib compression level (default: 1)
+        :keyword tls: MongoDB SSL/TLS state (default: True)
+        :keyword retries: MongoDB Number of attempted retries for operations
+        :keyword timeout: MongoDB Cool-down period in seconds between successive retries (default: 0.5)
+        """
         self.kwargs = kwargs
         self.master_dict = {}
         self.company_dict = {}
@@ -44,8 +55,10 @@ class Database:
             config_path = pathlib.Path(config_json)
         self.config = self._load_json_file(config_path)
         self.db = self._connect_db()
+        self.english_pattern = re.compile("^[a-zA-Z0-9._# -]*$")
+        warnings.filterwarnings("ignore")
 
-    def _parse_download(self, nvd_zipped_json):
+    def _parse_download(self, nvd_zipped_json: str) -> None:
         result = requests.get(nvd_zipped_json, stream=True)
         zip_object = zipfile.ZipFile(BytesIO(result.content))
         json_object = zip_object.read(zip_object.filelist[0].filename)
@@ -76,46 +89,58 @@ class Database:
                 v2_score = -1
 
             try:
-                obtainAllPrivilege = list_item["impact"]["baseMetricV2"][
+                obtain_all_privilege = list_item["impact"]["baseMetricV2"][
                     "obtainAllPrivilege"
                 ]
             except KeyError:
-                obtainAllPrivilege = False
+                obtain_all_privilege = False
 
             try:
-                obtainUserPrivilege = list_item["impact"]["baseMetricV2"][
+                obtain_user_privilege = list_item["impact"]["baseMetricV2"][
                     "obtainUserPrivilege"
                 ]
             except KeyError:
-                obtainUserPrivilege = False
+                obtain_user_privilege = False
 
             try:
-                obtainOtherPrivilege = list_item["impact"]["baseMetricV2"][
+                obtain_other_privilege = list_item["impact"]["baseMetricV2"][
                     "obtainOtherPrivilege"
                 ]
             except KeyError:
-                obtainOtherPrivilege = False
+                obtain_other_privilege = False
 
             try:
-                userInteractionRequired = list_item["impact"]["baseMetricV2"][
+                user_interaction_required = list_item["impact"]["baseMetricV2"][
                     "userInteractionRequired"
                 ]
             except KeyError:
-                userInteractionRequired = False
+                user_interaction_required = False
 
             self.master_dict[cve_id] = {
                 "description": selected_description,
                 "references": references,
-                "obtainAllPrivilege": obtainAllPrivilege,
-                "obtainUserPrivilege": obtainUserPrivilege,
-                "obtainOtherPrivilege": obtainOtherPrivilege,
-                "userInteractionRequired": userInteractionRequired,
+                "obtainAllPrivilege": obtain_all_privilege,
+                "obtainUserPrivilege": obtain_user_privilege,
+                "obtainOtherPrivilege": obtain_other_privilege,
+                "userInteractionRequired": user_interaction_required,
                 "v3_score": v3_score,
                 "v2_score": v2_score,
             }
 
+    def _pull_exploitdb(self):
+        print("Downloading exploit intelligence database...")
+        with requests.Session() as context:
+            download = context.get(
+                "https://raw.githubusercontent.com/offensive-security/exploitdb/master/files_exploits.csv"
+            )
+            decoded_content = download.content.decode("utf-8")
+            reader = csv.DictReader(decoded_content.splitlines(), delimiter=",")
+            for row in reader:
+                doc = {"description": row["description"], "date": row["date"]}
+                self.db.write("exploits", doc, row["id"])
+
     @staticmethod
-    def _load_json_file(json_file):
+    def _load_json_file(json_file: pathlib.Path) -> dict:
         """
         Loads a given JSON file into memory and returns a dictionary containing the result
         :param json_file: JSON file to load
@@ -129,6 +154,12 @@ class Database:
         except FileNotFoundError:
             print(f"Error: {file_path} not found.")
             raise FileNotFoundError
+
+    def _sanitize(self, text: str) -> str:
+        found = self.english_pattern.search(text)
+        if found is None:
+            raise ValueError("Received a string with special characters beyond ._# -")
+        return str(found.group())
 
     def _company_risk_rank(self):
         print("Performing risk ranking calculations...")
@@ -147,16 +178,32 @@ class Database:
             self.company_dict[item[0]]["risk_base_score"] = (
                 math.sqrt(ranking / number_of_companies) * 10
             )
-            item
+            if ranking == 1:
+                self.db.write(
+                    "configuration",
+                    {"base_score": str(self.company_dict[item[0]]["risk_base_score"])},
+                    "core_config",
+                )
 
     def _connect_db(self):
         return mongoblack.Connection(
-            self.config["db"]["instance"],
-            self.config["db"]["user"],
-            self.config["db"]["pass"],
-            self.config["db"]["uri"],
+            self.config["inntinn"]["instance"],
+            self.config["inntinn"]["user"],
+            self.config["inntinn"]["pass"],
+            self.config["inntinn"]["uri"],
             **self.kwargs,
         )
+
+    @staticmethod
+    def _confidence(target_list: list) -> int:
+        data = numpy.array(target_list)
+        try:
+            avg = data.mean()
+        except RuntimeWarning:
+            pass
+        variability = data.std()
+        accuracy = 100 - ((variability / avg) * 100)
+        return round(accuracy)
 
     def _company_read(self):
         for path in sorted(self.temp_dir.rglob("*")):
@@ -184,7 +231,6 @@ class Database:
         self._company_risk_rank()
         for key, value in self.company_dict.items():
             self.db.write("companies", value, key)
-        self.company_dict
 
     def _company_download(self):
         print("Downloading SEC database...")
@@ -193,14 +239,14 @@ class Database:
         }
 
         result = requests.get(
-            "http://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip",
+            "https://www.sec.gov/Archives/edgar/daily-index/xbrl/companyfacts.zip",
             headers=headers,
             stream=True,
         )
         master_zip = zipfile.ZipFile(BytesIO(result.content))
         master_zip.extractall(path=self.temp_dir)
 
-    def _download(self):
+    def _download(self) -> None:
         current_year = datetime.date.today().year
         print("Downloading entire NVD database...")
         for year in range(2002, current_year + 1):
@@ -219,21 +265,26 @@ class Database:
         for key, value in self.master_dict.items():
             self.db.write("cves", value, key)
 
+    def _read_config_for(self, config_item: str) -> str:
+        return self.db.get("configuration", "core_config")[config_item]
+
     def update(self):
         """
         Updates all internal databases using freshly downloaded data
         """
+        self._pull_exploitdb()
         self._company_download()
         self._company_read()
         self._download()
 
-    def cik_lookup(self, company_name):
+    def cik_lookup(self, company_name: str) -> dict:
         """
         Looks up all matching companies given the supplied company name
         Returns a dict in the format {cik:company}
         :param company_name: (case-insensitive) all or partial name of company to search for
         :return: dict: a dictionary where each key:value is cik:company
         """
+        company_name = self._sanitize(company_name)
         final_result = {}
         query = {}
         query["name"] = Regex(f".*{company_name}.*", "i")
@@ -242,19 +293,46 @@ class Database:
             final_result[item["_id"]] = {item["name"]}
         return final_result
 
-    def score_fuzzy(self, cve, company_name):
-        """
-        Computes the final composite Inntinn score given a portion of a company name and CVE
-        The final Tuple returned contains the score and the number of companies which went into said score
-        :param cve: NVD CVE ID which a given device is vulnerable
-        :param company_name: (case-insensitive) all or partial company name which owns the given device
-        :return: (int,int): Tuple of (final composite score, number of companies matched)
-        """
+    def _get_score(self, cve: str, company_score_list: list) -> tuple:
         cve_doc = self.db.get("cves", cve)
         if cve_doc["v3_score"] > -1:
-            score = cve_doc["v3_score"]
+            cvss = cve_doc["v3_score"]
         else:
-            score = cve_doc["v2_score"]
+            cvss = cve_doc["v2_score"]
+
+        query = {}
+        query["description"] = Regex(f".*{cve}.*", "i")
+        exploit_count = self.db.count("exploits", query)
+
+        average = numpy.mean(numpy.array(company_score_list))
+
+        try:
+            company_score = average * 1  # Testing if we averaged out a number or 'nan'
+            confidence = self._confidence(company_score_list)
+        except ValueError:
+            company_score = float(self._read_config_for("base_score"))
+            confidence = -1
+
+        final_score = math.ceil((company_score * cvss) + (cvss * (1 + exploit_count)))
+
+        final_score = int(final_score)
+
+        if final_score < 0:
+            final_score = 0
+        elif final_score > 100:
+            final_score = 100
+
+        return final_score, confidence
+
+    def score_fuzzy(self, cve: str, company_name: str) -> tuple:
+        """
+        Computes the final composite Inntinn score given a portion of a company name and CVE
+        The final Tuple returned contains the score and the confidence in said score (out of 100)
+        :param cve: NVD CVE ID which a given device is vulnerable
+        :param company_name: (case-insensitive) all or partial company name which owns the given device
+        :return: (int,int): Tuple of (final composite score, % confidence in score)
+        """
+        company_name = self._sanitize(company_name)
 
         base_scores = []
         query = {}
@@ -262,24 +340,75 @@ class Database:
 
         for item in self.db.get_all("companies", query):
             base_scores.append(item["risk_base_score"])
-        average = numpy.mean(
-            numpy.array(base_scores)
-        )  # Fastest way to average a list: https://stackoverflow.com/questions/58016779/fastest-way-to-compute-average-of-a-list
 
-        return (round(average * score), len(base_scores))
+        final_score, confidence = self._get_score(cve, base_scores)
 
-    def score(self, cve, cik):
+        return final_score, confidence
+
+    def score(self, cve: str, cik: [int, str]) -> int:
         """
         Computes the final composite Inntinn score given a specific company CIK and CVE
         :param cve: NVD CVE ID which a given device is vulnerable
         :param cik: SEC CIK identifier of a company which owns the given device
         :return: int: final composite score
         """
+        if not isinstance(cve, str):
+            raise ValueError("Only strings are accepted for CVE")
+        if not isinstance(cik, (str, int)):
+            raise ValueError("CIK may only be an integer or string")
         company_doc = self.db.get("companies", int(cik))
-        cve_doc = self.db.get("cves", cve)
-        if cve_doc["v3_score"] > -1:
-            score = cve_doc["v3_score"]
-        else:
-            score = cve_doc["v2_score"]
 
-        return round(company_doc["risk_base_score"] * score)
+        final_score, confidence = self._get_score(cve, [company_doc["risk_base_score"]])
+
+        return final_score
+
+    @staticmethod
+    def _get_score_list(score_list: list) -> int:
+        data = numpy.array(score_list)
+        mean = data.mean()
+        variance = data.std()
+
+        # removing scores that are less than 1 standard deviation from average. So low outliers.
+        cleaned_data = []
+        for value in data:
+            if value > mean - variance:
+                cleaned_data.append(value)
+
+        # Now recalculate with the adjusted array
+        final_score = int(math.ceil(numpy.array(cleaned_data).mean()))
+
+        return final_score
+
+    def score_list(self, list_of_cves: list, cik: int) -> int:
+        """
+        Calculate a final score for a given device which is vulnerable to the list_of_cves and is found in the
+        company identified by CIK
+        :param list_of_cves: The list of CVEs which the device is vulnerable to
+        :param cik: The company CIK which owns the device
+        :return: int: final composite score
+        """
+        scores = []
+        for cve in list_of_cves:
+            scores.append(self.score(cve, cik))
+
+        final_score = self._get_score_list(scores)
+
+        return final_score
+
+    def score_list_fuzzy(self, list_of_cves: list, company_name: str) -> tuple:
+        """
+        Calculate a final score for a given device which is vulnerable to the list_of_cves and is found in the
+        company identified by company_name (case insensitive)
+        :param list_of_cves: The list of CVEs which the device is vulnerable to
+        :param company_name: The company which owns the device (case-insensitive, partial match)
+        :return: (int,int): Tuple of (final composite score, % confidence in score)
+        """
+        scores = []
+        for cve in list_of_cves:
+            score, confidence = self.score_fuzzy(cve, company_name)
+            # we don't need to average the confidence scores as they all will be equal
+            scores.append(score)
+
+        final_score = self._get_score_list(scores)
+
+        return final_score, confidence

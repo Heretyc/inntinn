@@ -3,12 +3,12 @@ from setuptools import setup
 
 HERE = os.path.abspath(os.path.dirname(__file__))
 
-with open(os.path.join(HERE, "README.md")) as fid:
+with open(os.path.join(HERE, "README.md"), encoding="utf8") as fid:
     README = fid.read()
 
 setup(
     name="inntinn",
-    version="1.0.0",
+    version="1.0.1",
     description="OSINT composite vulnerability database",
     long_description=README,
     long_description_content_type="text/markdown",

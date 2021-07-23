@@ -8,7 +8,7 @@ with open(os.path.join(HERE, "README.md")) as fid:
 
 setup(
     name="inntinn",
-    version="0.0.4",
+    version="1.0.0",
     description="OSINT composite vulnerability database",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -29,5 +29,5 @@ setup(
     ],
     packages=["inntinn"],
     include_package_data=True,
-    install_requires=["requests", "mongoblack", "scipy"],
+    install_requires=["requests", "mongoblack"],
 )

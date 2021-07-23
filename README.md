@@ -36,7 +36,7 @@ The guiding principles behind this score are:
 4) Finally, scoring is based on public financial fillings with the Securities and Exchange Commission (SEC). Base scores for companies curve sharply upward as we look at the most profitable companies.
 
 
-[![Score Distribution](https://github.com/BlackburnHax/inntinn/raw/main/docs/score-dist.png)]
+![Score Distribution](https://github.com/BlackburnHax/inntinn/raw/main/docs/score-dist.png)
 
 ### Per Organization
 - A cumulative risk score is calculated by simply adding each Inntinn device score up. Just that simple.

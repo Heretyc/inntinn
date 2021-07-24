@@ -2,3 +2,4 @@ requests>=2.25.1
 setuptools>=52.0.0
 mongoblack>=1.0.0
 numpy>=1.19.2
+sanic>=21.6.0

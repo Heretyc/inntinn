@@ -1,7 +1,7 @@
 [![Inntinn: Intelligence](https://github.com/BlackburnHax/inntinn/raw/main/docs/logo.png)](https://github.com/BlackburnHax/inntinn)
 
 # inntinn
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![pypi](https://img.shields.io/pypi/v/inntinn.svg)](https://pypi.org/project/inntinn/) [![wheel](https://img.shields.io/pypi/wheel/inntinn.svg)](https://pypi.org/project/inntinn/)
 > OSINT composite vulnerability database.
 
 _Inntinn - Scotts Gaelic for "Intelligence"_

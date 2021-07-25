@@ -318,7 +318,7 @@ class Database:
         query["name"] = Regex(f".*{company_name}.*", "i")
 
         for item in self.db.get_all("companies", query):
-            final_result[item["_id"]] = {item["name"]}
+            final_result[item["_id"]] = item["name"]
         return final_result
 
     def _get_score(self, cve: str, company_score_list: list) -> tuple:

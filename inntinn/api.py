@@ -146,6 +146,11 @@ async def handler_root(request: sanic.Request):
     return api_message("Ready", 200)
 
 
+@app.get("/api/license/timestamp/*")
+async def handler_root(request: sanic.Request):
+    return api_message("Ready", 200)
+
+
 @app.route("/server", methods=["POST"])
 async def handler_server(request: sanic.Request):
     if request.method == "POST":

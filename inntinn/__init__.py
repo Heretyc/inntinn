@@ -9,6 +9,7 @@ import zipfile
 from io import BytesIO
 
 import mongoblack
+from blackburn import LockFile
 import numpy
 import requests
 from bson.regex import Regex
@@ -51,6 +52,8 @@ class Database:
         self.company_dict = {}
         self.temp_dir = pathlib.Path.cwd() / "temp"
         self.temp_dir.mkdir(parents=True, exist_ok=True)
+        self.lock = LockFile(self.temp_dir / "database.lock")
+
         if isinstance(config_json, (str, pathlib.Path)):
             config_path = pathlib.Path(config_json)
         self.config = self._load_json_file(config_path)
@@ -281,10 +284,11 @@ class Database:
         """
         Updates all internal databases using freshly downloaded data
         """
-        self._download_exploitdb()
-        self._download_sec()
-        self._company_read()
-        self._download_cve()
+        with self.lock:
+            self._download_exploitdb()
+            self._download_sec()
+            self._company_read()
+            self._download_cve()
 
     def _validate_cve(self, cve: str) -> str:
         if not isinstance(cve, str):

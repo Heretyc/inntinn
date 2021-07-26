@@ -401,12 +401,11 @@ class Database:
         # removing scores that are less than 1 standard deviation from average. So low outliers.
         cleaned_data = []
         for value in data:
-            if value > mean - variance:
+            if value >= mean - variance:
                 cleaned_data.append(value)
 
         # Now recalculate with the adjusted array
         final_score = int(math.ceil(numpy.array(cleaned_data).mean()))
-
         return final_score
 
     def score_device_list(self, list_of_cves: list, cik: int) -> int:

@@ -1,0 +1,187 @@
+swagger: '2.0'
+info:
+  title: Inntinn
+  version: '1.1'
+  license:
+    name: Apache 2.0
+    url: 'https://github.com/BlackburnHax/inntinn/blob/main/LICENSE'
+  description: ''
+  summary: >-
+    Meta risk analysis and scoring system based on open-source fully automated
+    intelligence gathering
+  contact:
+    name: Brandon Blackburn
+    url: 'https://bhax.net'
+  termsOfService: 'https://github.com/BlackburnHax/inntinn/blob/main/LICENSE'
+servers:
+  - url: 'http://localhost:443'
+paths:
+  /cik:
+    post:
+      summary: Lookup company CIK
+      tags: []
+      responses: {}
+      operationId: post-cik
+      description: Looks up all matching companies given the supplied company name
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: ''
+              type: object
+              properties:
+                lookup:
+                  type: string
+                  minLength: 1
+              required:
+                - lookup
+              x-examples:
+                example-1:
+                  lookup: apple
+            examples:
+              example-1:
+                value:
+                  lookup: string
+  /cve:
+    post:
+      summary: Lookup CVE
+      tags: []
+      responses: {}
+      operationId: post-cve
+      description: Retrieve available information on a given NVD CVE ID
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: ''
+              type: object
+              properties:
+                lookup:
+                  type: string
+                  minLength: 1
+              required:
+                - lookup
+              x-examples:
+                example-1:
+                  lookup: CVE-2019-0708
+  /score:
+    post:
+      summary: Compute Inntinn Score
+      tags: []
+      responses: {}
+      operationId: post-score
+      description: >-
+        Calculate a final score for a given device which is vulnerable to the
+        list of CVEs and is found in the company identified by CIK or partial
+        name match
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: ''
+              type: object
+              x-examples:
+                example-1:
+                  cves:
+                    - CVE-2019-0708
+                    - CVE-1999-0019
+                    - CVE-2018-0880
+                    - CVE-2021-22721
+                  company: apple
+              properties:
+                cves:
+                  type: array
+                  items:
+                    type: string
+                company:
+                  type:
+                    - string
+                    - integer
+                  minLength: 1
+              required:
+                - cves
+                - company
+            examples:
+              Fuzzy Matching:
+                value:
+                  cves:
+                    - CVE-2019-0708
+                    - CVE-1999-0019
+                    - CVE-2018-0880
+                    - CVE-2021-22721
+                  company: apple
+              Precise Matching on CIK:
+                value:
+                  cves:
+                    - CVE-2019-0708
+                    - CVE-1999-0019
+                    - CVE-2018-0880
+                    - CVE-2021-22721
+                  company: 320193
+  /score/org:
+    post:
+      summary: Compute Org Score
+      tags: []
+      responses: {}
+      operationId: post-score-org
+      description: >-
+        Creates a single company-wide score that can measure overall risk in
+        relation to other companies, or over time..
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: ''
+              type: object
+              x-examples:
+                example-1:
+                  scores:
+                    - 22
+                    - 15
+                    - 99
+                    - 5
+              properties:
+                scores:
+                  type: array
+                  items:
+                    type: integer
+              required:
+                - scores
+            examples:
+              Basic Usage:
+                value:
+                  scores:
+                    - 22
+                    - 15
+                    - 99
+                    - 5
+  /server:
+    post:
+      summary: ''
+      operationId: post-server
+      responses:
+        '200':
+          description: OK
+      description: Updates all internal databases using freshly downloaded data
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: ''
+              type: object
+              properties:
+                key:
+                  type: string
+                  minLength: 1
+              required:
+                - key
+              x-examples:
+                example-1:
+                  key: change_me
+            examples:
+              Basic Usage:
+                value:
+                  key: change_me
+        description: ''
+components:
+  schemas: {}

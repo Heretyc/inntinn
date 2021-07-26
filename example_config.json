@@ -1,4 +1,7 @@
 {"inntinn":{"instance":"thedb",
        "user": "audrey",
        "pass": "asdfghjjkl12345",
-       "uri": "mongodb://4.2.2.2:27017/"}}
+       "uri": "mongodb://4.2.2.2:27017/"},
+"inntinn_api": {"tls_cert": "path/to/snakeoil_cert.pem",
+       "tls_key":  "path/to/snakeoil_key.pem",
+       "admin_pass": "change_me"}}

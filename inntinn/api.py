@@ -5,8 +5,7 @@ from sanic import Sanic, response
 import inntinn
 import pathlib
 from threading import Thread
-from asyncio import Semaphore
-import aiohttp
+
 
 """api: Inntinn scoring and data access API"""
 
@@ -132,24 +131,13 @@ def api_json(payload: dict, status_code: int) -> sanic.response:
     """
     assert isinstance(status_code, int), "status_code must be an integer"
     assert isinstance(payload, dict), "payload must be a dictionary"
-    assert status_code < 300, "status code must be a code below 300"
+    assert status_code < 511, "status code must be a code below 511"
     assert status_code >= 200, "status code must be a code at or above 100"
     return response.json(
         payload,
         headers={"X-Served-By": "Inntinn"},
         status=status_code,
     )
-
-
-@app.before_server_start
-def init(app, _):
-    global update_semaphore
-    update_semaphore = Semaphore()
-
-
-async def update_database():
-    async with update_semaphore:  # We acquire a semaphore in order to prevent being DOSed by update requests
-        return Thread(target=app.ctx.db.update).start()
 
 
 @app.get("/")
@@ -160,7 +148,7 @@ async def handler_root(request: sanic.Request):
 @app.route("/server", methods=["POST"])
 async def handler_server(request: sanic.Request):
     if request.method == "POST":
-        await update_database()
+        Thread(target=app.ctx.db.update).start()
         return api_message("Processing update", 202)
 
 
@@ -173,6 +161,55 @@ async def handler_cik(request: sanic.Request):
             "format must be a JSON with format {'lookup':company_name_here}", 400
         )
     return returned_data
+
+
+@app.route("/cve", methods=["POST"])
+async def handler_cve(request: sanic.Request):
+    try:
+        returned_data = api_json(app.ctx.db.cve_lookup(request.json["lookup"]), 200)
+    except sanic.exceptions.InvalidUsage:
+        returned_data = api_error(
+            "format must be a JSON with format {'lookup':CVE here}", 400
+        )
+    return returned_data
+
+
+@app.route("/score", methods=["POST"])
+async def handler_score(request: sanic.Request):
+    def format_error():
+        return api_error(
+            "format must be a JSON with format {'cves':CVE_list_here, 'company':company_name_or_cik}",
+            400,
+        )
+
+    try:
+        cves = request.json["cves"]
+        company = request.json["company"]
+    except sanic.exceptions.InvalidUsage:
+        return format_error()
+    if not isinstance(cves, list):
+        return format_error()
+    if not isinstance(company, (int, str)):
+        return format_error()
+    try:
+        company = int(company)
+        fuzzy = False
+    except ValueError:
+        fuzzy = True
+
+    if fuzzy:
+        result = app.ctx.db.score_device_list_fuzzy(cves, company)
+        if result[1] < 1:
+            status_code = 404
+        else:
+            status_code = 200
+        return api_json({"score": result[0], "confidence": result[1]}, status_code)
+    else:
+        try:
+            result = app.ctx.db.score_device_list(cves, company)
+        except LookupError:
+            return api_json({"score": -1}, 404)
+        return api_json({"score": result}, 200)
 
 
 @app.route("/test", methods=["POST", "PUT", "GET"])

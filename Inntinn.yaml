@@ -6,9 +6,7 @@ info:
     name: Apache 2.0
     url: 'https://github.com/BlackburnHax/inntinn/blob/main/LICENSE'
   description: ''
-  summary: >-
-    Meta risk analysis and scoring system based on open-source fully automated
-    intelligence gathering
+  summary: Meta risk analysis and scoring system based on open-source fully automated intelligence gathering
   contact:
     name: Brandon Blackburn
     url: 'https://bhax.net'
@@ -70,10 +68,7 @@ paths:
       tags: []
       responses: {}
       operationId: post-score
-      description: >-
-        Calculate a final score for a given device which is vulnerable to the
-        list of CVEs and is found in the company identified by CIK or partial
-        name match
+      description: Calculate a final score for a given device which is vulnerable to the list of CVEs and is found in the company identified by CIK or partial name match
       requestBody:
         content:
           application/json:
@@ -124,9 +119,7 @@ paths:
       tags: []
       responses: {}
       operationId: post-score-org
-      description: >-
-        Creates a single company-wide score that can measure overall risk in
-        relation to other companies, or over time..
+      description: 'Creates a single company-wide score that can measure overall risk in relation to other companies, or over time..'
       requestBody:
         content:
           application/json:
@@ -157,7 +150,7 @@ paths:
                     - 5
   /server:
     post:
-      summary: ''
+      summary: Server Admin
       operationId: post-server
       responses:
         '200':

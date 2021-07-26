@@ -4,6 +4,7 @@ import sanic
 from sanic import Sanic, response
 import inntinn
 import pathlib
+from blackburn import load_json_file
 from threading import Thread
 
 
@@ -29,18 +30,18 @@ __license__ = "Apache 2.0"
 #  TL;DR:
 #  For a human-readable & fast explanation of the Apache 2.0 license visit:  http://www.tldrlegal.com/l/apache2
 
-tls_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
-
-http_port = 80
-https_port = 443
-public_cert = pathlib.Path("snakeoil_cert.pem").resolve()
-private_key = pathlib.Path("snakeoil_key.pem").resolve()
-tls_context.load_cert_chain(public_cert, keyfile=private_key)
 
 app = Sanic("Inntinn")
 http = Sanic("HTTP Proxy")
 app.ctx.db = inntinn.Database(pathlib.Path.cwd().parent / "config.json", tls=False)
-update_semaphore = None
+app.ctx.config = load_json_file(pathlib.Path.cwd().parent / "config.json")
+
+tls_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
+http_port = 80
+https_port = 443
+public_cert = pathlib.Path(app.ctx.config["inntinn_api"]["tls_cert"]).resolve()
+private_key = pathlib.Path(app.ctx.config["inntinn_api"]["tls_key"]).resolve()
+tls_context.load_cert_chain(public_cert, keyfile=private_key)
 
 app.config.SERVER_NAME = "127.0.0.1"
 http.config.SERVER_NAME = "Redirect"
@@ -148,8 +149,15 @@ async def handler_root(request: sanic.Request):
 @app.route("/server", methods=["POST"])
 async def handler_server(request: sanic.Request):
     if request.method == "POST":
-        Thread(target=app.ctx.db.update).start()
-        return api_message("Processing update", 202)
+        try:
+            key = request.json["key"]
+        except sanic.exceptions.InvalidUsage:
+            return api_error("format must be a JSON with format {'key':admin_key}", 400)
+        if key == app.ctx.config["inntinn_api"]["admin_pass"]:
+            Thread(target=app.ctx.db.update).start()
+            return api_message("Processing update", 202)
+        else:
+            return api_error("The supplied credentials are invalid", 403)
 
 
 @app.route("/cik", methods=["POST"])
@@ -166,12 +174,14 @@ async def handler_cik(request: sanic.Request):
 @app.route("/cve", methods=["POST"])
 async def handler_cve(request: sanic.Request):
     try:
-        returned_data = api_json(app.ctx.db.cve_lookup(request.json["lookup"]), 200)
+        return api_json(app.ctx.db.cve_lookup(request.json["lookup"]), 200)
     except sanic.exceptions.InvalidUsage:
-        returned_data = api_error(
-            "format must be a JSON with format {'lookup':CVE here}", 400
+        return api_error("format must be a JSON with format {'lookup':CVE here}", 400)
+    except ValueError:
+        return api_error(
+            "CVE ID must confirm to NIST NVD standards, only 1 CVE is allowed per request",
+            400,
         )
-    return returned_data
 
 
 @app.route("/score", methods=["POST"])
@@ -212,9 +222,26 @@ async def handler_score(request: sanic.Request):
         return api_json({"score": result}, 200)
 
 
-@app.route("/test", methods=["POST", "PUT", "GET"])
-async def handler_test(request):
-    return api_message("OK", 200)
+@app.route("/score/org", methods=["POST"])
+async def handler_score_org(request: sanic.Request):
+    def format_error():
+        return api_error(
+            "format must be a JSON with format {'scores':[Inntinn_score_list]} - Scores must be integers, not strings",
+            400,
+        )
+
+    try:
+        scores = request.json["scores"]
+    except sanic.exceptions.InvalidUsage:
+        return format_error()
+    if not isinstance(scores, list):
+        return format_error()
+    try:
+        result = app.ctx.db.score_org(scores)
+    except TypeError:
+        return format_error()
+    payload = {"org_score": result}
+    return api_json(payload, 200)
 
 
 if __name__ == "__main__":
@@ -223,6 +250,6 @@ if __name__ == "__main__":
         debug=True,
         access_log=False,
         port=https_port,
-        # workers=10,
+        workers=10,
         ssl=tls_context,
     )

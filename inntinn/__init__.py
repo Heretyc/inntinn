@@ -7,11 +7,12 @@ import re
 import warnings
 import zipfile
 from io import BytesIO
+from typing import Union
 
 import mongoblack
-from blackburn import LockFile
 import numpy
 import requests
+from blackburn import LockFile, load_json_file
 from bson.regex import Regex
 
 """inntinn: OSINT composite vulnerability database"""
@@ -38,7 +39,7 @@ __license__ = "Apache 2.0"
 
 
 class Database:
-    def __init__(self, config_json: [str, pathlib.Path], **kwargs):
+    def __init__(self, config_json: Union[str, pathlib.Path], **kwargs):
         """
         Initializes the database connection using the supplied configuration file.
         :param config_json: Pathlib path, or string containing the path to the configuration JSON file
@@ -56,7 +57,7 @@ class Database:
 
         if isinstance(config_json, (str, pathlib.Path)):
             config_path = pathlib.Path(config_json)
-        self.config = self._load_json_file(config_path)
+        self.config = load_json_file(config_path)
         self.db = self._connect_db()
         self.english_pattern = re.compile("^[a-zA-Z0-9._# -]*$")
         self.cve_pattern = re.compile("^CVE-\d{4}-(0\d{3}|[1-9]\d{3,})$", re.IGNORECASE)
@@ -143,22 +144,6 @@ class Database:
                 doc = {"description": row["description"], "date": row["date"]}
                 self.db.write("exploits", doc, row["id"])
 
-    @staticmethod
-    def _load_json_file(json_file: pathlib.Path) -> dict:
-        """
-        Loads a given JSON file into memory and returns a dictionary containing the result
-        :param json_file: JSON file to load
-        :type json_file: str
-        :rtype: dict
-        """
-        file_path = pathlib.Path(json_file)
-        try:
-            with open(file_path, "r") as json_data:
-                return json.load(json_data)
-        except FileNotFoundError:
-            print(f"Error: {file_path} not found.")
-            raise FileNotFoundError
-
     def _sanitize(self, text: str) -> str:
         found = self.english_pattern.search(text)
         if found is None:
@@ -213,7 +198,7 @@ class Database:
     def _company_read(self):
         print("Parsing SEC database data...")
         for path in sorted(self.temp_dir.rglob("*.json")):
-            company_dict = self._load_json_file(path)
+            company_dict = load_json_file(path)
             try:
                 company_name = company_dict["entityName"]
             except KeyError:

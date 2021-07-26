@@ -1,16 +1,18 @@
-openapi: 3.1.0
+swagger: '2.0'
 info:
   title: Inntinn
   version: '1.1'
   license:
     name: Apache 2.0
     url: 'https://github.com/BlackburnHax/inntinn/blob/main/LICENSE'
-  description: Meta risk analysis and scoring system based on open-source fully automated intelligence gathering
+  description: ''
+  summary: >-
+    Meta risk analysis and scoring system based on open-source fully automated
+    intelligence gathering
   contact:
     name: Brandon Blackburn
     url: 'https://bhax.net'
   termsOfService: 'https://github.com/BlackburnHax/inntinn/blob/main/LICENSE'
-  summary: OSINT composite vulnerability database
 servers:
   - url: 'http://localhost:443'
 paths:
@@ -68,7 +70,10 @@ paths:
       tags: []
       responses: {}
       operationId: post-score
-      description: Calculate a final score for a given device which is vulnerable to the list of CVEs and is found in the company identified by CIK or partial name match
+      description: >-
+        Calculate a final score for a given device which is vulnerable to the
+        list of CVEs and is found in the company identified by CIK or partial
+        name match
       requestBody:
         content:
           application/json:
@@ -119,7 +124,9 @@ paths:
       tags: []
       responses: {}
       operationId: post-score-org
-      description: 'Creates a single company-wide score that can measure overall risk in relation to other companies, or over time..'
+      description: >-
+        Creates a single company-wide score that can measure overall risk in
+        relation to other companies, or over time..
       requestBody:
         content:
           application/json:

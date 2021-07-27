@@ -14,6 +14,84 @@ info:
 servers:
   - url: 'http://localhost:443'
 paths:
+  /server:
+    post:
+      summary: Server Admin
+      operationId: post-server
+      responses:
+        '200':
+          description: OK
+          headers:
+            Authorization:
+              type: string
+              description: Bearer JWT_TOKEN_HERE
+      description: Updates all internal databases using freshly downloaded data. MUST OBTAIN A JWT FROM /auth FIRST
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: ''
+              type: object
+              properties:
+                key:
+                  type: string
+                  minLength: 1
+              required:
+                - key
+              x-examples:
+                example-1:
+                  key: change_me
+            examples:
+              Basic Usage:
+                value:
+                  key: change_me
+        description: ''
+      parameters: []
+  /auth:
+    post:
+      summary: JWT Authentication
+      tags:
+        - JWT
+      responses:
+        '200':
+          description: OK
+          schema:
+            description: ''
+            type: object
+            properties:
+              access_token:
+                type: string
+                minLength: 1
+            required:
+              - access_token
+            x-examples:
+              example-1:
+                access_token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE2MjczOTQxOTZ9.ijysbok9v_l2Mestd1zQA08gO913gFO2IPaE0LpgJs4
+          examples:
+            Sample JWT:
+              access_token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE2MjczOTQxOTZ9.ijysbok9v_l2Mestd1zQA08gO913gFO2IPaE0LpgJs4
+      operationId: post-auth
+      description: Obtain a JWT using supplied Username and Password
+      parameters:
+        - in: body
+          name: body
+          schema:
+            description: ''
+            type: object
+            properties:
+              username:
+                type: string
+                minLength: 1
+              password:
+                type: string
+                minLength: 1
+            required:
+              - username
+              - password
+            x-examples:
+              example-1:
+                username: admin
+                password: change_me
   /cik:
     post:
       summary: Lookup company CIK
@@ -82,11 +160,11 @@ paths:
               example-1:
                 key: change_me
             properties:
-              key:
+              lookup:
                 type: string
                 minLength: 1
             required:
-              - key
+              - lookup
   /cve:
     post:
       summary: Lookup CVE
@@ -366,33 +444,5 @@ paths:
                 - 15
                 - 99
                 - 5
-  /server:
-    post:
-      summary: Server Admin
-      operationId: post-server
-      responses:
-        '200':
-          description: OK
-      description: Updates all internal databases using freshly downloaded data
-      requestBody:
-        content:
-          application/json:
-            schema:
-              description: ''
-              type: object
-              properties:
-                key:
-                  type: string
-                  minLength: 1
-              required:
-                - key
-              x-examples:
-                example-1:
-                  key: change_me
-            examples:
-              Basic Usage:
-                value:
-                  key: change_me
-        description: ''
 components:
   schemas: {}

@@ -1,12 +1,13 @@
-import ssl
-
-import sanic
-from sanic import Sanic, response
-import inntinn
 import pathlib
-from blackburn import load_json_file
+import ssl
 from threading import Thread
 
+import sanic
+from blackburn import load_json_file
+from sanic import Sanic, response
+from sanic_openapi import doc, openapi2_blueprint
+
+import inntinn
 
 """api: Inntinn scoring and data access API"""
 
@@ -35,6 +36,7 @@ app = Sanic("Inntinn")
 http = Sanic("HTTP Proxy")
 app.ctx.db = inntinn.Database(pathlib.Path.cwd().parent / "config.json", tls=False)
 app.ctx.config = load_json_file(pathlib.Path.cwd().parent / "config.json")
+app.blueprint(openapi2_blueprint)
 
 tls_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
 http_port = 80
@@ -47,6 +49,49 @@ app.config.SERVER_NAME = "127.0.0.1"
 http.config.SERVER_NAME = "Redirect"
 app.static("/favicon.ico", pathlib.Path.cwd() / "favicon.ico")
 http.static("/favicon.ico", pathlib.Path.cwd() / "favicon.ico")
+
+
+class ScoringObjectOrg:
+    scores = doc.List(doc.Integer("Individual Inntinn device-level scores"))
+
+
+class ScoringObject:
+    company = doc.String("Company name or CIK")
+    cves = doc.List(doc.String("List of CVEs which apply to this device"))
+
+
+class LookupStr:
+    lookup = str
+
+
+class AdminObject:
+    key = doc.String("Admin password as defined in the config.json")
+
+
+found_ciks = {int: doc.String("Company names")}
+
+
+class FoundCVE:
+    _id = doc.String("CVE ID")
+    description = doc.String("NIST provided vulnerability description")
+    obtainAllPrivilege = bool
+    obtainOtherPrivilege = bool
+    obtainUserPrivilege = bool
+    userInteractionRequired = bool
+    references = [doc.String("URLs to relevant NIST supplied documentation")]
+    v2_score = doc.Float("CVSS v2 Score (-1 if unavailable)")
+    v3_score = doc.Float("CVSS v3 Score (-1 if unavailable)")
+
+
+class ScoredObject:
+    score = doc.Integer("1-100 Inntinn Device-level score (100 being greatest risk)")
+    confidence = doc.Integer(
+        "1-100 Level of certainty that the score reflects reality. (Omitted in case of CIK scoring)"
+    )
+
+
+class ScoredObjectOrg:
+    org_score = doc.Integer("Inntinn Organizational-level score")
 
 
 # region HTTP to HTTPS redirection
@@ -142,16 +187,20 @@ def api_json(payload: dict, status_code: int) -> sanic.response:
 
 
 @app.get("/")
+@doc.exclude(True)
 async def handler_root(request: sanic.Request):
     return api_message("Ready", 200)
 
 
 @app.get("/api/license/timestamp/*")
+@doc.exclude(True)
 async def handler_root(request: sanic.Request):
     return api_message("Ready", 200)
 
 
 @app.route("/server", methods=["POST"])
+@doc.summary("Updates all internal databases using freshly downloaded data")
+@doc.consumes(AdminObject, location="body")
 async def handler_server(request: sanic.Request):
     if request.method == "POST":
         try:
@@ -166,6 +215,9 @@ async def handler_server(request: sanic.Request):
 
 
 @app.route("/cik", methods=["POST"])
+@doc.summary("Looks up all matching companies given the supplied company name")
+@doc.consumes(LookupStr, location="body")
+@doc.produces(found_ciks)
 async def handler_cik(request: sanic.Request):
     try:
         returned_data = api_json(app.ctx.db.cik_lookup(request.json["lookup"]), 200)
@@ -177,6 +229,9 @@ async def handler_cik(request: sanic.Request):
 
 
 @app.route("/cve", methods=["POST"])
+@doc.summary("Retrieve available information on a given NVD CVE ID")
+@doc.consumes(LookupStr, location="body")
+@doc.produces(FoundCVE)
 async def handler_cve(request: sanic.Request):
     try:
         return api_json(app.ctx.db.cve_lookup(request.json["lookup"]), 200)
@@ -190,6 +245,11 @@ async def handler_cve(request: sanic.Request):
 
 
 @app.route("/score", methods=["POST"])
+@doc.summary(
+    "Calculate a final score for a given device which is vulnerable to the list of CVEs and is found in the company identified by CIK or partial name match"
+)
+@doc.consumes(ScoringObject, location="body")
+@doc.produces(ScoredObject)
 async def handler_score(request: sanic.Request):
     def format_error():
         return api_error(
@@ -228,6 +288,11 @@ async def handler_score(request: sanic.Request):
 
 
 @app.route("/score/org", methods=["POST"])
+@doc.summary(
+    "Creates a single company-wide score that can measure overall risk in relation to other companies, or over time."
+)
+@doc.consumes(ScoringObjectOrg, location="body")
+@doc.produces(ScoredObjectOrg)
 async def handler_score_org(request: sanic.Request):
     def format_error():
         return api_error(

@@ -111,6 +111,10 @@ To view the documentation for the API visit [**bhax.net/api**](https://bhax.net/
 
 [![API Documentation: Swagger](https://img.shields.io/badge/API%20Docs-Swagger-blue)](https://bhax.net/api)
 
+Additionally, once the API is running, you can visit:
+> https ://your_host/swagger
+
+for a dynamically updated Swagger spec page that is accessible even without internet access.
 
 The API is functional and fast, but we **do not** recommend running it on Windows as multi-threading is not available at this time. Running on Windows will result in dramatically slower response processing.
 

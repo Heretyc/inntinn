@@ -19,7 +19,7 @@ result = response.json()
 
 
 # Example: Updating the database
-payload = {"key": "change_me"}
+# payload = {"key": "change_me"}
 response = requests.post(f"{server_uri}/server", json=payload, verify=False)
 result = response.json()
 

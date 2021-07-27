@@ -19,8 +19,22 @@ result = response.json()
 
 
 # Example: Updating the database
-# payload = {"key": "change_me"}
-response = requests.post(f"{server_uri}/server", json=payload, verify=False)
+# First we try the WRONG WAY
+payload = {
+    "username": "admin",
+    "password": "change_me",
+}  # you set this in the config.json. "admin" is always the user
+bad_response = requests.post(f"{server_uri}/server", json=payload, verify=False)
+# Now we authenticate using JWTs! (RFC 7519) - The RIGHT WAY
+auth_response = requests.post(f"{server_uri}/auth", json=payload, verify=False)
+auth_response_json = auth_response.json()
+
+response = requests.post(
+    f"{server_uri}/server",
+    json=payload,
+    headers={"Authorization": f"Bearer {auth_response_json['access_token']}"},
+    verify=False,
+)
 result = response.json()
 
 # Example: Scoring an asset owned by "Apple" with certain vulnerabilities

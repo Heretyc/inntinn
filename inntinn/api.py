@@ -5,6 +5,7 @@ from threading import Thread
 import sanic
 from blackburn import load_json_file
 from sanic import Sanic, response
+from sanic_jwt import Initialize, exceptions, decorators
 from sanic_openapi import doc, openapi2_blueprint
 
 import inntinn
@@ -31,12 +32,55 @@ __license__ = "Apache 2.0"
 #  TL;DR:
 #  For a human-readable & fast explanation of the Apache 2.0 license visit:  http://www.tldrlegal.com/l/apache2
 
+# region JWT Authentication
+config_file = load_json_file(pathlib.Path.cwd().parent / "config.json")
+
+
+class User:
+    def __init__(self, id, username, password):
+        self.user_id = id
+        self.username = username
+        self.password = password
+
+    def __repr__(self):
+        return "User(id='{}')".format(self.user_id)
+
+    def to_dict(self):
+        return {"user_id": self.user_id, "username": self.username}
+
+
+users = [User(1, "admin", config_file["inntinn_api"]["admin_pass"])]
+
+username_table = {u.username: u for u in users}
+userid_table = {u.user_id: u for u in users}
+
+
+async def authenticate(request, *args, **kwargs):
+    username = request.json.get("username", None)
+    password = request.json.get("password", None)
+
+    if not username or not password:
+        raise exceptions.AuthenticationFailed("Invalid username or password.")
+
+    user = username_table.get(username, None)
+    if user is None:
+        raise exceptions.AuthenticationFailed("User not found.")
+
+    if password != user.password:
+        raise exceptions.AuthenticationFailed("Password is incorrect.")
+
+    return user
+
+
+# endregion JWT Authentication
+
 
 app = Sanic("Inntinn")
 http = Sanic("HTTP Proxy")
 app.ctx.db = inntinn.Database(pathlib.Path.cwd().parent / "config.json", tls=False)
 app.ctx.config = load_json_file(pathlib.Path.cwd().parent / "config.json")
 app.blueprint(openapi2_blueprint)
+Initialize(app, authenticate=authenticate)
 
 tls_context = ssl.create_default_context(purpose=ssl.Purpose.CLIENT_AUTH)
 http_port = 80
@@ -51,6 +95,7 @@ app.static("/favicon.ico", pathlib.Path.cwd() / "favicon.ico")
 http.static("/favicon.ico", pathlib.Path.cwd() / "favicon.ico")
 
 
+# region Swagger Spec definitions
 class ScoringObjectOrg:
     scores = doc.List(doc.Integer("Individual Inntinn device-level scores"))
 
@@ -65,7 +110,7 @@ class LookupStr:
 
 
 class AdminObject:
-    key = doc.String("Admin password as defined in the config.json")
+    Authorization = doc.String("Format 'Bearer YOUR_JWT' JWT obtained from /auth")
 
 
 found_ciks = {int: doc.String("Company names")}
@@ -93,6 +138,8 @@ class ScoredObject:
 class ScoredObjectOrg:
     org_score = doc.Integer("Inntinn Organizational-level score")
 
+
+# endregion Swagger Spec definitions
 
 # region HTTP to HTTPS redirection
 @http.get("/<path:path>")
@@ -131,7 +178,7 @@ async def stop(app, _):
 
 # endregion HTTP to HTTPS redirection
 
-
+# region Standardized response builders
 def api_error(error_message: str, status_code: int) -> sanic.response:
     """
     Builds a response payload in the format {"message": your_message} with the provided error status code
@@ -186,6 +233,9 @@ def api_json(payload: dict, status_code: int) -> sanic.response:
     )
 
 
+# endregion Standardized response builders
+
+
 @app.get("/")
 @doc.exclude(True)
 async def handler_root(request: sanic.Request):
@@ -199,19 +249,15 @@ async def handler_root(request: sanic.Request):
 
 
 @app.route("/server", methods=["POST"])
-@doc.summary("Updates all internal databases using freshly downloaded data")
-@doc.consumes(AdminObject, location="body")
+@doc.summary(
+    "Updates all internal databases using freshly downloaded data, REQUIRES JWT Auth"
+)
+@doc.consumes(AdminObject, location="headers")
+@decorators.protected()
 async def handler_server(request: sanic.Request):
     if request.method == "POST":
-        try:
-            key = request.json["key"]
-        except sanic.exceptions.InvalidUsage:
-            return api_error("format must be a JSON with format {'key':admin_key}", 400)
-        if key == app.ctx.config["inntinn_api"]["admin_pass"]:
-            Thread(target=app.ctx.db.update).start()
-            return api_message("Processing update", 202)
-        else:
-            return api_error("The supplied credentials are invalid", 403)
+        Thread(target=app.ctx.db.update).start()
+        return api_message("Processing update", 202)
 
 
 @app.route("/cik", methods=["POST"])

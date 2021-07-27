@@ -128,6 +128,33 @@ Generate your certs and set the config to point to the files.
 **Important Note:** Currently, the config.json must be called "config.json" and placed in the same directory as the api.py application.
 _(This behavior is likely to change in a future update allowing one to pass the config as a command line argument at launch)_
 
+## Authentication
+
+The database is read-only in all cases but one, database updates.
+For this reason, all endpoints do not require authentication of any kind... **except the /server endpoint**.
+
+Authentication is done using [JWTs (JSON Web Tokens)](https://jwt.io/) which are [RFC 7519](https://tools.ietf.org/html/rfc7519) compliant.
+
+### Example
+For the admin user defined in the config.json, the default password is "change_me" the following example shows how to authenticate with JWTs to update the server:
+```python
+import requests
+server_uri = "https://127.0.0.1"
+
+# Obtain a JWT
+payload = {"username": "admin", "password": "change_me"}
+auth_response = requests.post(f"{server_uri}/auth", json=payload, verify=False)
+auth_response_json = auth_response.json()
+
+# Now use the JWT
+response = requests.post(
+    f"{server_uri}/server",
+    json=payload,
+    headers={"Authorization": f"Bearer {auth_response_json['access_token']}"},
+    verify=False,
+)
+```
+
 ## Meta
 
 Brandon Blackburn – [PGP Encrypted Chat @ Keybase](https://keybase.io/blackburnhax/chat)

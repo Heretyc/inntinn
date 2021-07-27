@@ -50,8 +50,6 @@ paths:
   /auth:
     post:
       summary: JWT Authentication
-      tags:
-        - JWT
       responses:
         '200':
           description: OK

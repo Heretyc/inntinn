@@ -26,8 +26,10 @@ setup(
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
         "Natural Language :: English",
+        "Topic :: Text Processing :: Markup :: reStructuredText",
+        "Topic :: Database :: Database Engines/Servers",
     ],
     packages=["inntinn"],
     include_package_data=True,
-    install_requires=["requests", "mongoblack"],
+    install_requires=["requests", "mongoblack", "sanic", "blackburn"],
 )

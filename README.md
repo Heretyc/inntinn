@@ -1,7 +1,7 @@
 [![Inntinn: Intelligence](https://github.com/BlackburnHax/inntinn/raw/main/docs/logo.png)](https://github.com/BlackburnHax/inntinn)
 
-# inntinn
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![pypi](https://img.shields.io/pypi/v/inntinn.svg)](https://pypi.org/project/inntinn/) [![wheel](https://img.shields.io/pypi/wheel/inntinn.svg)](https://pypi.org/project/inntinn/)
+# inntinn 
+[![API Documentation: Swagger](https://img.shields.io/badge/API%20Docs-Swagger-blue)](https://bhax.net/api) [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black) [![pypi](https://img.shields.io/pypi/v/inntinn.svg)](https://pypi.org/project/inntinn/) [![wheel](https://img.shields.io/pypi/wheel/inntinn.svg)](https://pypi.org/project/inntinn/)
 > OSINT composite vulnerability database.
 
 _Inntinn - Scotts Gaelic for "Intelligence"_
@@ -105,6 +105,25 @@ device_a_score = db.score_device_list(["CVE-2019-0708", "CVE-1999-0019", "CVE-20
 device_z_score = db.score_device_list(["CVE-2021-2336", "CVE-2021-2390", "CVE-2018-0840", "CVE-2019-0708"], 320193)
 org_score = db.score_org([device_a_score, device_z_score])
 ```
+## API
+Optionally, Inntinn has an accompanying [Sanic](https://sanicframework.org/) based API which does not require a proxy like most Python frameworks.
+To view the documentation for the API visit [**bhax.net/api**](https://bhax.net/api)
+
+[![API Documentation: Swagger](https://img.shields.io/badge/API%20Docs-Swagger-blue)](https://bhax.net/api)
+
+
+The API is functional and fast, but we **do not** recommend running it on Windows as multi-threading is not available at this time. Running on Windows will result in dramatically slower response processing.
+
+### Getting started
+
+The [API itself is located under inntinn/api.py](https://github.com/BlackburnHax/inntinn/blob/main/inntinn/api.py) and must be launched with appropriate permissions to open sockets on Port 80 & Port 443.
+
+Use the [example_config.json](https://github.com/BlackburnHax/inntinn/blob/main/example_config.json) and be pay close attention to the "inntinn_api" section.
+Generate your certs and set the config to point to the files.
+
+**Important Note:** Currently, the config.json must be called "config.json" and placed in the same directory as the api.py application.
+_(This behavior is likely to change in a future update allowing one to pass the config as a command line argument at launch)_
+
 ## Meta
 
 Brandon Blackburn – [PGP Encrypted Chat @ Keybase](https://keybase.io/blackburnhax/chat)

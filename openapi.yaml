@@ -1,0 +1,506 @@
+openapi: 3.0.0
+info:
+  title: Inntinn
+  version: '1.1'
+  contact:
+    name: Brandon Blackburn
+    url: 'http://blackburn.link'
+  license:
+    name: Apache 2.0
+    url: 'https://github.com/BlackburnHax/inntinn/blob/main/LICENSE'
+  description: ''
+  termsOfService: 'https://github.com/BlackburnHax/inntinn/blob/main/LICENSE'
+servers:
+  - url: 'http://localhost:443'
+    description: Your Server
+paths:
+  /score:
+    post:
+      summary: Calculate Inntinn device score
+      operationId: post-score
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                description: ''
+                type: object
+                x-examples:
+                  example-1:
+                    score: 48
+                    confidence: 54
+                properties:
+                  score:
+                    type: number
+                    description: 1-100 Inntinn Device-level score (100 being greatest risk)
+                  confidence:
+                    type: number
+                    description: 1-100 Level of certainty that the score reflects reality. (Omitted in case of CIK scoring)
+                required:
+                  - score
+              examples:
+                basic usage:
+                  value:
+                    score: 48
+                    confidence: 54
+      description: Calculate a final score for a given device which is vulnerable to the list of CVEs and is found in the company identified by CIK or partial name match
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: ''
+              type: object
+              x-examples:
+                example-1:
+                  cves:
+                    - CVE-2019-0708
+                    - CVE-1999-0019
+                    - CVE-2018-0880
+                    - CVE-2021-22721
+                  company: apple
+              properties:
+                cves:
+                  type: array
+                  description: List of CVEs which apply to this device
+                  items:
+                    type: string
+                company:
+                  type: string
+                  minLength: 1
+                  description: Company name or CIK
+              required:
+                - cves
+                - company
+            examples:
+              basic usage:
+                value:
+                  cves:
+                    - CVE-2019-0708
+                    - CVE-1999-0019
+                    - CVE-2018-0880
+                    - CVE-2021-22721
+                  company: apple
+      security: []
+  /score/org:
+    post:
+      summary: Calculate Inntinn org score
+      operationId: post-score-org
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                description: ''
+                type: object
+                properties:
+                  org_score:
+                    type: number
+                required:
+                  - org_score
+                x-examples:
+                  example-1:
+                    org_score: 141
+              examples:
+                basic usage:
+                  value:
+                    org_score: 141
+      description: 'Creates a single company-wide score that can measure overall risk in relation to other companies, or over time.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: ''
+              type: object
+              x-examples:
+                example-1:
+                  scores:
+                    - 22
+                    - 15
+                    - 99
+                    - 5
+              properties:
+                scores:
+                  type: array
+                  description: Individual Inntinn device-level scores
+                  items:
+                    type: integer
+              required:
+                - scores
+            examples:
+              basic usage:
+                value:
+                  scores:
+                    - 22
+                    - 15
+                    - 99
+                    - 5
+      security: []
+  /cve:
+    post:
+      summary: CVE lookup
+      operationId: post-cve
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                description: ''
+                type: object
+                x-examples:
+                  example-1:
+                    _id: CVE-2019-0708
+                    description: 'A remote code execution vulnerability exists in Remote Desktop Services formerly known as Terminal Services when an unauthenticated attacker connects to the target system using RDP and sends specially crafted requests, aka ''Remote Desktop Services Remote Code Execution Vulnerability''.'
+                    obtainAllPrivilege: false
+                    obtainOtherPrivilege: false
+                    obtainUserPrivilege: false
+                    references:
+                      - 'http://packetstormsecurity.com/files/155389/Microsoft-Windows-7-x86-BlueKeep-RDP-Use-After-Free.html'
+                      - 'http://www.huawei.com/en/psirt/security-advisories/huawei-sa-20190529-01-windows-en'
+                      - 'http://packetstormsecurity.com/files/162960/Microsoft-RDP-Remote-Code-Execution.html'
+                      - 'https://cert-portal.siemens.com/productcert/pdf/ssa-932041.pdf'
+                      - 'http://packetstormsecurity.com/files/154579/BlueKeep-RDP-Remote-Windows-Kernel-Use-After-Free.html'
+                      - 'http://packetstormsecurity.com/files/153133/Microsoft-Windows-Remote-Desktop-BlueKeep-Denial-Of-Service.html'
+                      - 'https://cert-portal.siemens.com/productcert/pdf/ssa-433987.pdf'
+                      - 'https://cert-portal.siemens.com/productcert/pdf/ssa-616199.pdf'
+                      - 'https://cert-portal.siemens.com/productcert/pdf/ssa-166360.pdf'
+                      - 'http://www.huawei.com/en/psirt/security-notices/huawei-sn-20190515-01-windows-en'
+                      - 'http://packetstormsecurity.com/files/153627/Microsoft-Windows-RDP-BlueKeep-Denial-Of-Service.html'
+                      - 'https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/CVE-2019-0708'
+                      - 'https://cert-portal.siemens.com/productcert/pdf/ssa-406175.pdf'
+                      - 'https://cert-portal.siemens.com/productcert/pdf/ssa-832947.pdf'
+                    userInteractionRequired: false
+                    v2_score: 10
+                    v3_score: 9.8
+                properties:
+                  _id:
+                    type: string
+                    minLength: 1
+                    description: CVE ID
+                  description:
+                    type: string
+                    minLength: 1
+                    description: NIST provided vulnerability description
+                  obtainAllPrivilege:
+                    type: boolean
+                  obtainOtherPrivilege:
+                    type: boolean
+                  obtainUserPrivilege:
+                    type: boolean
+                  references:
+                    type: array
+                    description: URLs to relevant NIST supplied documentation
+                    items:
+                      type: string
+                  userInteractionRequired:
+                    type: boolean
+                  v2_score:
+                    type: number
+                    description: CVSS v2 Score (-1 if unavailable)
+                  v3_score:
+                    type: number
+                    description: VSS v3 Score (-1 if unavailable)
+                required:
+                  - _id
+                  - description
+                  - obtainAllPrivilege
+                  - obtainOtherPrivilege
+                  - obtainUserPrivilege
+                  - references
+                  - userInteractionRequired
+                  - v2_score
+                  - v3_score
+              examples:
+                basic usage:
+                  value:
+                    _id: CVE-2019-0708
+                    description: 'A remote code execution vulnerability exists in Remote Desktop Services formerly known as Terminal Services when an unauthenticated attacker connects to the target system using RDP and sends specially crafted requests, aka ''Remote Desktop Services Remote Code Execution Vulnerability''.'
+                    obtainAllPrivilege: false
+                    obtainOtherPrivilege: false
+                    obtainUserPrivilege: false
+                    references:
+                      - 'http://packetstormsecurity.com/files/155389/Microsoft-Windows-7-x86-BlueKeep-RDP-Use-After-Free.html'
+                      - 'http://www.huawei.com/en/psirt/security-advisories/huawei-sa-20190529-01-windows-en'
+                      - 'http://packetstormsecurity.com/files/162960/Microsoft-RDP-Remote-Code-Execution.html'
+                      - 'https://cert-portal.siemens.com/productcert/pdf/ssa-932041.pdf'
+                      - 'http://packetstormsecurity.com/files/154579/BlueKeep-RDP-Remote-Windows-Kernel-Use-After-Free.html'
+                      - 'http://packetstormsecurity.com/files/153133/Microsoft-Windows-Remote-Desktop-BlueKeep-Denial-Of-Service.html'
+                      - 'https://cert-portal.siemens.com/productcert/pdf/ssa-433987.pdf'
+                      - 'https://cert-portal.siemens.com/productcert/pdf/ssa-616199.pdf'
+                      - 'https://cert-portal.siemens.com/productcert/pdf/ssa-166360.pdf'
+                      - 'http://www.huawei.com/en/psirt/security-notices/huawei-sn-20190515-01-windows-en'
+                      - 'http://packetstormsecurity.com/files/153627/Microsoft-Windows-RDP-BlueKeep-Denial-Of-Service.html'
+                      - 'https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/CVE-2019-0708'
+                      - 'https://cert-portal.siemens.com/productcert/pdf/ssa-406175.pdf'
+                      - 'https://cert-portal.siemens.com/productcert/pdf/ssa-832947.pdf'
+                    userInteractionRequired: false
+                    v2_score: 10
+                    v3_score: 9.8
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: ''
+              type: object
+              properties:
+                lookup:
+                  type: string
+                  minLength: 1
+              required:
+                - lookup
+              x-examples:
+                example-1:
+                  lookup: CVE-2019-0708
+            examples:
+              basic usage:
+                value:
+                  lookup: CVE-2019-0708
+      description: Retrieve available information on a given NVD CVE ID
+      security: []
+  /cik:
+    post:
+      summary: CIK lookup
+      operationId: post-cik
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                description: ''
+                type: object
+                x-examples:
+                  example-1:
+                    '63330': MAUI LAND & PINEAPPLE CO INC
+                    '320193': Apple Inc.
+                    '1144326': APPLETON PAPERS INC/WI
+                    '1277151': APPLE REIT SIX INC
+                    '1329011': 'APPLE REIT SEVEN, INC.'
+                    '1387361': 'APPLE REIT EIGHT, INC.'
+                    '1418121': 'APPLE HOSPITALITY REIT, INC.'
+                    '1498864': 'APPLE REIT TEN, INC.'
+                    '1510976': 'APPLE GREEN HOLDING, INC.'
+                    '1654672': 'PINEAPPLE, INC.'
+                properties:
+                  <CIK>:
+                    type: string
+                    minLength: 1
+                    description: 'List of company names identified by {CIK:NAME}'
+                required:
+                  - <CIK>
+              examples:
+                basic usage:
+                  value:
+                    '63330': MAUI LAND & PINEAPPLE CO INC
+                    '320193': Apple Inc.
+                    '1144326': APPLETON PAPERS INC/WI
+                    '1277151': APPLE REIT SIX INC
+                    '1329011': 'APPLE REIT SEVEN, INC.'
+                    '1387361': 'APPLE REIT EIGHT, INC.'
+                    '1418121': 'APPLE HOSPITALITY REIT, INC.'
+                    '1498864': 'APPLE REIT TEN, INC.'
+                    '1510976': 'APPLE GREEN HOLDING, INC.'
+                    '1654672': 'PINEAPPLE, INC.'
+      description: Looks up all matching companies given the supplied company name
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: ''
+              type: object
+              x-examples:
+                example-1:
+                  lookup: apple
+              properties:
+                lookup:
+                  type: string
+                  minLength: 1
+                  description: All or part of a company name
+              required:
+                - lookup
+            examples:
+              basic usage:
+                value:
+                  lookup: apple
+      security: []
+  /auth:
+    post:
+      summary: JWT Authentication
+      operationId: post-auth
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                description: ''
+                type: object
+                x-examples:
+                  example-1:
+                    access_token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE2Mjc1MDc3Mzd9.lCaC-mYXFNcUVmkFfQICQizHOR987M4_LqBaIkK0WSQ
+                properties:
+                  access_token:
+                    type: string
+                    minLength: 1
+                    description: JWT token to use for admin access
+                required:
+                  - access_token
+              examples:
+                basic usage:
+                  value:
+                    access_token: eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJ1c2VyX2lkIjoxLCJleHAiOjE2Mjc1MDc3Mzd9.lCaC-mYXFNcUVmkFfQICQizHOR987M4_LqBaIkK0WSQ
+      requestBody:
+        content:
+          application/json:
+            schema:
+              description: ''
+              type: object
+              x-examples:
+                example-1:
+                  username: admin
+                  password: change_me
+              properties:
+                username:
+                  type: string
+                  minLength: 1
+                  description: should always be 'admin'
+                password:
+                  type: string
+                  minLength: 1
+                  description: The admin password you set in config.json
+              required:
+                - username
+                - password
+            examples:
+              basic usage:
+                value:
+                  username: admin
+                  password: change_me
+      description: Obtain a JSON Web Token (JWT)
+      security: []
+  /server:
+    post:
+      summary: Server Update
+      operationId: post-server
+      responses:
+        '202':
+          description: Accepted
+          content:
+            application/json:
+              schema:
+                description: ''
+                type: object
+                x-examples:
+                  example-1:
+                    message: Processing update
+                properties:
+                  message:
+                    type: string
+                    minLength: 1
+                    description: Acknoledgement of request
+                required:
+                  - message
+              examples:
+                basic usage:
+                  value:
+                    message: Processing update
+      security:
+        - JWT: []
+      description: 'Updates all internal databases using freshly downloaded data, REQUIRES JWT Auth'
+components:
+  schemas:
+    CVE:
+      description: 'When performing a CVE lookup, this is the returned JSON object'
+      type: object
+      x-examples:
+        basic usage:
+          _id: CVE-2019-0708
+          description: 'A remote code execution vulnerability exists in Remote Desktop Services formerly known as Terminal Services when an unauthenticated attacker connects to the target system using RDP and sends specially crafted requests, aka ''Remote Desktop Services Remote Code Execution Vulnerability''.'
+          obtainAllPrivilege: false
+          obtainOtherPrivilege: false
+          obtainUserPrivilege: false
+          references:
+            - 'http://packetstormsecurity.com/files/155389/Microsoft-Windows-7-x86-BlueKeep-RDP-Use-After-Free.html'
+            - 'http://www.huawei.com/en/psirt/security-advisories/huawei-sa-20190529-01-windows-en'
+            - 'http://packetstormsecurity.com/files/162960/Microsoft-RDP-Remote-Code-Execution.html'
+            - 'https://cert-portal.siemens.com/productcert/pdf/ssa-932041.pdf'
+            - 'http://packetstormsecurity.com/files/154579/BlueKeep-RDP-Remote-Windows-Kernel-Use-After-Free.html'
+            - 'http://packetstormsecurity.com/files/153133/Microsoft-Windows-Remote-Desktop-BlueKeep-Denial-Of-Service.html'
+            - 'https://cert-portal.siemens.com/productcert/pdf/ssa-433987.pdf'
+            - 'https://cert-portal.siemens.com/productcert/pdf/ssa-616199.pdf'
+            - 'https://cert-portal.siemens.com/productcert/pdf/ssa-166360.pdf'
+            - 'http://www.huawei.com/en/psirt/security-notices/huawei-sn-20190515-01-windows-en'
+            - 'http://packetstormsecurity.com/files/153627/Microsoft-Windows-RDP-BlueKeep-Denial-Of-Service.html'
+            - 'https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/CVE-2019-0708'
+            - 'https://cert-portal.siemens.com/productcert/pdf/ssa-406175.pdf'
+            - 'https://cert-portal.siemens.com/productcert/pdf/ssa-832947.pdf'
+          userInteractionRequired: false
+          v2_score: 10
+          v3_score: 9.8
+          value:
+            _id: CVE-2019-0708
+            description: 'A remote code execution vulnerability exists in Remote Desktop Services formerly known as Terminal Services when an unauthenticated attacker connects to the target system using RDP and sends specially crafted requests, aka ''Remote Desktop Services Remote Code Execution Vulnerability''.'
+            obtainAllPrivilege: false
+            obtainOtherPrivilege: false
+            obtainUserPrivilege: false
+            references:
+              - 'http://packetstormsecurity.com/files/155389/Microsoft-Windows-7-x86-BlueKeep-RDP-Use-After-Free.html'
+              - 'http://www.huawei.com/en/psirt/security-advisories/huawei-sa-20190529-01-windows-en'
+              - 'http://packetstormsecurity.com/files/162960/Microsoft-RDP-Remote-Code-Execution.html'
+              - 'https://cert-portal.siemens.com/productcert/pdf/ssa-932041.pdf'
+              - 'http://packetstormsecurity.com/files/154579/BlueKeep-RDP-Remote-Windows-Kernel-Use-After-Free.html'
+              - 'http://packetstormsecurity.com/files/153133/Microsoft-Windows-Remote-Desktop-BlueKeep-Denial-Of-Service.html'
+              - 'https://cert-portal.siemens.com/productcert/pdf/ssa-433987.pdf'
+              - 'https://cert-portal.siemens.com/productcert/pdf/ssa-616199.pdf'
+              - 'https://cert-portal.siemens.com/productcert/pdf/ssa-166360.pdf'
+              - 'http://www.huawei.com/en/psirt/security-notices/huawei-sn-20190515-01-windows-en'
+              - 'http://packetstormsecurity.com/files/153627/Microsoft-Windows-RDP-BlueKeep-Denial-Of-Service.html'
+              - 'https://portal.msrc.microsoft.com/en-US/security-guidance/advisory/CVE-2019-0708'
+              - 'https://cert-portal.siemens.com/productcert/pdf/ssa-406175.pdf'
+              - 'https://cert-portal.siemens.com/productcert/pdf/ssa-832947.pdf'
+            userInteractionRequired: false
+            v2_score: 10
+            v3_score: 9.8
+      properties:
+        _id:
+          type: string
+          minLength: 1
+        description:
+          type: string
+          minLength: 1
+        obtainAllPrivilege:
+          type: boolean
+        obtainOtherPrivilege:
+          type: boolean
+        obtainUserPrivilege:
+          type: boolean
+        references:
+          type: array
+          items:
+            type: string
+        userInteractionRequired:
+          type: boolean
+        v2_score:
+          type: number
+        v3_score:
+          type: number
+      required:
+        - _id
+        - description
+        - obtainAllPrivilege
+        - obtainOtherPrivilege
+        - obtainUserPrivilege
+        - references
+        - userInteractionRequired
+        - v2_score
+        - v3_score
+  securitySchemes:
+    JWT:
+      name: Authorization
+      type: apiKey
+      in: header
+      description: 'JSON Web Token (JWT) in format Authorization:Bearer <token>'
+security:
+  - Authorization: []

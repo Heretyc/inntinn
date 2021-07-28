@@ -8,10 +8,13 @@ info:
   license:
     name: Apache 2.0
     url: 'https://github.com/BlackburnHax/inntinn/blob/main/LICENSE'
-  description: ''
+  description: |-
+    Inntinn has one primary objective: simplify the process of communicating risk to stakeholders and measuring risk over time in a concise manner.
+
+    Optionally, Inntinn has an accompanying Sanic based API which does not require a proxy like most Python frameworks. To view the documentation for the API visit bhax.net/api
   termsOfService: 'https://github.com/BlackburnHax/inntinn/blob/main/LICENSE'
 servers:
-  - url: 'http://localhost:443'
+  - url: 'https://localhost:443'
     description: Your Server
 paths:
   /score:

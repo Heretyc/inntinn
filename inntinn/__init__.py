@@ -4,6 +4,7 @@ import json
 import math
 import pathlib
 import re
+import time
 import warnings
 import zipfile
 from io import BytesIO
@@ -14,8 +15,11 @@ import numpy
 import requests
 from blackburn import LockFile, load_json_file
 from bson.regex import Regex
+from .igithub import IGitHub
+from .ipastebin import IPastebin
 
-"""inntinn: OSINT composite vulnerability database"""
+
+"""inntinn.io: OSINT composite vulnerability database"""
 
 __author__ = "Brandon Blackburn"
 __maintainer__ = "Brandon Blackburn"
@@ -61,6 +65,10 @@ class Database:
         self.db = self._connect_db()
         self.english_pattern = re.compile("^[a-zA-Z0-9._# -]*$")
         self.cve_pattern = re.compile("^CVE-\d{4}-(0\d{3}|[1-9]\d{3,})$", re.IGNORECASE)
+        self.cve_spider_pattern = re.compile(
+            "(CVE-\d{4}-(?:0\d{3}|[1-9]\d{3,}))", re.IGNORECASE
+        )
+
         warnings.filterwarnings("ignore")
 
     def _parse_download(self, nvd_zipped_json: str) -> None:

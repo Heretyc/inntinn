@@ -8,7 +8,7 @@ with open(os.path.join(HERE, "README.md"), encoding="utf8") as fid:
 
 setup(
     name="inntinn",
-    version="1.2.0",
+    version="1.3.0",
     description="OSINT composite vulnerability database",
     long_description=README,
     long_description_content_type="text/markdown",
@@ -38,5 +38,6 @@ setup(
         "blackburn",
         "sanic-openapi",
         "sanic_jwt",
+        "PyGithub",
     ],
 )

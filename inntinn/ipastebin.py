@@ -4,7 +4,7 @@ import json
 import pathlib
 import time
 
-from blackburn import load_json_file
+from blackburn import load_json_file, TZ, time_stamp_convert
 import mongoblack
 from typing import Union
 import warnings
@@ -60,7 +60,7 @@ class IPastebin:
         self.cve_parts_pattern = re.compile(
             "CVE[ _-]([0-9]{4})[ _-]([0-9]{3,7})", re.IGNORECASE
         )
-        self.time_gate_seconds = 59
+        self.time_gate_seconds = 5
 
         warnings.filterwarnings("ignore")
 
@@ -129,27 +129,38 @@ class IPastebin:
             raw_url = (
                 f"https://scrape.pastebin.com/api_scrape_item.php?i={result['key']}"
             )
-            document = {"source": source, "raw_url": raw_url}
-            self.db.write_new(cache, document)
+            time_stamp = TZ.is_utc(datetime.datetime.fromtimestamp(int(result["date"])))
+            time_stamp = time_stamp_convert(time_stamp)
+            document = {
+                "source": source,
+                "raw_url": raw_url,
+                "pastebin_key": result["key"],
+                "date": time_stamp,
+            }
+            self.db.write(cache, document, result["key"])
         print("Precache Complete.")
 
     def _cache_pastebin(self, reversed=False):
         cache = "pastebin_precache"
+        if reversed:
+            print("Starting Caching thread B...")
+        else:
+            print("Starting Caching thread A...")
         while True:
             if reversed:
-                print("Starting Caching thread B...")
                 cached_pastes = self.db.get_all(cache).sort("_id", pymongo.DESCENDING)
             else:
-                print("Starting Caching thread A...")
                 cached_pastes = self.db.get_all(cache)
             for entry in cached_pastes:
+                pre_existing_doc = self.db.get("pastebin_cache", entry["pastebin_key"])
+                if pre_existing_doc is not None:
+                    continue  # To avoid loading PasteBin's servers and our own, we track and skip any pastes we already have
                 attempts = 0
                 if reversed:
                     print(f"thread B processing: {entry['source']}")
                 else:
                     print(f"thread A processing: {entry['source']}")
                 while True:
-
                     try:
                         result = requests.get(entry["raw_url"])
                         break
@@ -161,8 +172,15 @@ class IPastebin:
 
                 if result.status_code == 200:
                     compressed = self._zip(result.text)
-                    document = {"gzip": compressed, "source": entry["source"]}
-                    success_status = self.db.write_new("pastebin_cache", document)
+                    document = {
+                        "gzip": compressed,
+                        "source": entry["source"],
+                        "pastebin_key": entry["pastebin_key"],
+                        "date": entry["date"],
+                    }
+                    success_status = self.db.write(
+                        "pastebin_cache", document, entry["pastebin_key"]
+                    )
                     if success_status.acknowledged:
                         self.db.delete(cache, entry["_id"])
             time.sleep(2)

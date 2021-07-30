@@ -1,10 +1,10 @@
 requests>=2.25.1
-setuptools>=52.0.0
 mongoblack>=1.0.1
 numpy>=1.19.2
 sanic>=21.6.0
 aiohttp>=3.7.3
-blackburn>=0.9.0
+blackburn>=1.0.0
 urllib3>=1.26.3
 warpcore>=1.1.2
 git+https://github.com/sanic-org/sanic-openapi.git#egg=sanic-openapi
+pygithub>=1.55

@@ -13,6 +13,7 @@ import requests
 from threading import Thread
 import pymongo
 import gzip
+import random
 
 """pastebin: Pastebin spider for Inntinn.io"""
 
@@ -60,7 +61,7 @@ class IPastebin:
         self.cve_parts_pattern = re.compile(
             "CVE[ _-]([0-9]{4})[ _-]([0-9]{3,7})", re.IGNORECASE
         )
-        self.time_gate_seconds = 5
+        self.time_gate_seconds = 10
 
         warnings.filterwarnings("ignore")
 
@@ -144,13 +145,23 @@ class IPastebin:
         cache = "pastebin_precache"
         if reversed:
             print("Starting Caching thread B...")
+            time.sleep(
+                5 * random.random()
+            )  # staggering threads to reduce resource contention
         else:
             print("Starting Caching thread A...")
+            time.sleep(
+                5 * random.random()
+            )  # staggering threads to reduce resource contention
         while True:
             if reversed:
                 cached_pastes = self.db.get_all(cache).sort("_id", pymongo.DESCENDING)
             else:
                 cached_pastes = self.db.get_all(cache)
+                number_of_cached_pastes = self.db.count(cache)
+                if number_of_cached_pastes < 200 and reversed:
+                    time.sleep(5 * random.random())
+                    continue
             for entry in cached_pastes:
                 pre_existing_doc = self.db.get("pastebin_cache", entry["pastebin_key"])
                 if pre_existing_doc is not None:
